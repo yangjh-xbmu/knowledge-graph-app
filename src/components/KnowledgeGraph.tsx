@@ -12,6 +12,8 @@ import {
   Controls,
   Background,
   MiniMap,
+  Handle,
+  Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -20,7 +22,7 @@ import { KnowledgeNode as KnowledgeNodeType } from '../types/knowledge';
 import { masteryService } from '../services/masteryService';
 
 // 自定义节点组件
-const KnowledgeNode = ({ data }: { data: KnowledgeNodeType }) => {
+const KnowledgeNode = React.memo(({ data }: { data: KnowledgeNodeType }) => {
   const isMastered = masteryService.isMastered(data.id);
   const masteryState = masteryService.getMasteryState(data.id);
 
@@ -65,12 +67,36 @@ const KnowledgeNode = ({ data }: { data: KnowledgeNodeType }) => {
 
   return (
     <div className={`relative px-4 py-3 rounded-lg ${borderStyle} shadow-md min-w-[200px] max-w-[250px] ${getCategoryColor(data.category, isMastered)}`}>
+      {/* React Flow Handles for connections */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="top"
+        style={{ background: '#555' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom"
+        style={{ background: '#555' }}
+      />
+      
       {getLevelBadge(data.level)}
       {getMasteryBadge()}
       <div className="font-bold text-sm mb-1">{data.title}</div>
       <div className="text-xs opacity-80">{data.description}</div>
       <div className="mt-2 text-xs flex justify-between items-center">
-        <span className="inline-block bg-white bg-opacity-50 px-2 py-1 rounded text-xs">
+        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+          isMastered 
+            ? 'bg-yellow-200 text-yellow-800 border border-yellow-300'
+            : data.category === 'basic' 
+              ? 'bg-blue-200 text-blue-800 border border-blue-300'
+              : data.category === 'advanced'
+                ? 'bg-green-200 text-green-800 border border-green-300'
+                : data.category === 'practical'
+                  ? 'bg-purple-200 text-purple-800 border border-purple-300'
+                  : 'bg-gray-200 text-gray-800 border border-gray-300'
+        }`}>
           {data.category}
         </span>
         {isMastered && masteryState && masteryState.quizScore && (
@@ -81,9 +107,9 @@ const KnowledgeNode = ({ data }: { data: KnowledgeNodeType }) => {
       </div>
     </div>
   );
-};
+});
 
-// 节点类型定义
+// 节点类型定义 - 定义在组件外部避免重新创建
 const nodeTypes = {
   knowledgeNode: KnowledgeNode,
 };
@@ -109,6 +135,8 @@ export default function KnowledgeGraph({ onNodeClick }: KnowledgeGraphProps) {
       id: edge.id,
       source: edge.source,
       target: edge.target,
+      sourceHandle: 'bottom',
+      targetHandle: 'top',
       type: 'smoothstep',
       animated: edge.type === 'prerequisite',
       style: {

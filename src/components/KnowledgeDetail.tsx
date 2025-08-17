@@ -92,18 +92,23 @@ export default function KnowledgeDetail({ nodeId, onClose, onStartQuiz }: Knowle
                 remarkPlugins={[remarkGfm]}
                 components={{
                   code: ({ className, children, ...props }: any) => {
-                    const match = /language-(\w+)/.exec(className || '');
-                    const isInline = !match;
-                    return isInline ? (
-                      <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props}>
-                        {children}
-                      </code>
-                    ) : (
+                    // 判断是否为代码块的逻辑：
+                    // 1. 有language-xxx的className（指定语言的代码块）
+                    // 2. 或者内容包含换行符（没有指定语言的代码块）
+                    const hasLanguageClass = className && className.startsWith('language-');
+                    const hasNewlines = String(children).includes('\n');
+                    const isCodeBlock = hasLanguageClass || hasNewlines;
+                    
+                    return isCodeBlock ? (
                       <pre className="bg-gray-100 rounded-lg p-4 overflow-x-auto">
                         <code className={className} {...props}>
                           {children}
                         </code>
                       </pre>
+                    ) : (
+                      <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props}>
+                        {children}
+                      </code>
                     );
                   },
                   h1: ({ children }: any) => (

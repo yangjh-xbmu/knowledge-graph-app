@@ -64,7 +64,7 @@ class AIService {
   }
 
   private createQuizPrompt(knowledge: KnowledgeNode, questionCount: number): string {
-    return `请根据以下TypeScript知识点生成${questionCount}道选择题。
+    return `请根据以下知识点生成${questionCount}道选择题。
 
 知识点标题: ${knowledge.title}
 知识点描述: ${knowledge.description}
@@ -73,6 +73,7 @@ class AIService {
 知识点类别: ${knowledge.category}
 
 要求：
+0. 所有题目包括选项和解释都必须是Markdown格式。使用中文
 1. 每道题目应该测试对该知识点的理解
 2. 提供4个选项，每个选项必须是唯一的，不能重复，且不要有ABCD这样的标记。
 3. 选项内容要有意义，避免使用"以上都不对"、"以上都对"等模糊选项
@@ -80,29 +81,87 @@ class AIService {
 5. 题目难度应该符合知识点的级别（${knowledge.level}）
 6. 确保每道题只有一个正确答案
 7. 选项长度要适中，避免过长或过短
-8. 严格按照以下JSON格式返回，不要包含任何其他文本：
+8. **严格的Markdown代码格式要求（极其重要 - 必须严格遵守）：**
+   - 题目和解释中的变量名、函数名、简短代码片段（1行）使用行内代码：\`code\`
+9. 严格按照以下JSON格式返回，不要包含任何其他文本：
 
 {
   "questions": [
     {
       "id": "1",
       "question": "题目内容",
-      "options": ["选项A", "选项B", "选项C", "选项D"],
+      "options": [
+        "选项A的文本描述",
+        "\`\`\`" + codeLanguage + "\\ncode here\\n\`\`\`",
+        "选项C的文本描述", 
+        "\`\`\`" + codeLanguage + "\\nanother code\\n\`\`\`"
+      ],
       "correctAnswer": 0,
-      "explanation": "答案解释"
+      "explanation": "答案解释，如果包含代码也要用：\`\`\`" + codeLanguage + "\\ncode\\n\`\`\`"
     }
   ],
   "totalQuestions": ${questionCount}
-}`;
+}
+
+注意：选项中的代码必须严格按照上述格式，使用完整的代码块标记。`;
+  }
+
+  private optimizeCodeFormat(jsonString: string): string {
+    try {
+      // 解析JSON以便处理选项
+      const data = JSON.parse(jsonString);
+      
+      if (data.questions && Array.isArray(data.questions)) {
+        data.questions.forEach((question: any) => {
+          if (question.options && Array.isArray(question.options)) {
+            question.options = question.options.map((option: string) => {
+              return this.fixCodeBlockFormat(option);
+            });
+          }
+          // 同时优化explanation中的代码格式
+          if (question.explanation) {
+            question.explanation = this.fixCodeBlockFormat(question.explanation);
+          }
+        });
+      }
+      
+      return JSON.stringify(data);
+    } catch (error) {
+      // 如果JSON解析失败，返回原字符串
+      return jsonString;
+    }
+  }
+
+  private fixCodeBlockFormat(text: string): string {
+    // 检测并修复不完整的代码块格式
+    // 匹配模式："语言\n代码内容" 但不是完整的代码块
+    const codePattern = /^(typescript|javascript|python|java|cpp|c|go|rust|php|ruby|swift|kotlin|scala|dart|html|css|sql|json|yaml|xml|bash|shell)\n([\s\S]+)$/;
+    
+    const match = text.match(codePattern);
+    if (match) {
+      const language = match[1];
+      const code = match[2];
+      
+      // 检查是否已经是完整的代码块格式
+      if (!text.startsWith('```') || !text.endsWith('```')) {
+        // 转换为完整的代码块格式
+        return `\`\`\`${language}\n${code}\n\`\`\``;
+      }
+    }
+    
+    return text;
   }
 
   private parseQuizResponse(response: string): QuizData {
     try {
       // 清理响应文本，移除可能的markdown代码块标记
-      const cleanResponse = response
+      let cleanResponse = response
         .replace(/```json\n?/g, '')
         .replace(/```\n?/g, '')
         .trim();
+      
+      // 优化选项中的代码格式
+      cleanResponse = this.optimizeCodeFormat(cleanResponse);
       
       const parsed = JSON.parse(cleanResponse);
       

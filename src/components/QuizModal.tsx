@@ -87,7 +87,7 @@ const analyzeContentStructure = (content: string) => {
 };
 
 // 使用AI服务生成测试题
-const generateQuizForNode = async (nodeId: string): Promise<Quiz[]> => {
+const generateQuizForNode = async (nodeId: string, onAiResponse?: (response: any) => void): Promise<Quiz[]> => {
   try {
     // 从知识数据中找到对应的知识点
     const knowledgeNode = knowledgeGraph.nodes.find((node: any) => node.id === nodeId);
@@ -101,10 +101,37 @@ const generateQuizForNode = async (nodeId: string): Promise<Quiz[]> => {
     // 使用AI服务生成测试题
     const quizData = await aiService.generateQuiz(knowledgeNode, questionCount);
     
+    // 保存AI响应数据用于调试
+    if (onAiResponse) {
+      onAiResponse({
+        nodeId,
+        knowledgeNode,
+        questionCount,
+        aiResponse: quizData,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     // 转换为Quiz类型
     return quizData.questions.map(question => convertToQuiz(question, nodeId));
   } catch (error) {
     console.error('Error generating quiz:', error);
+    
+    // 从知识数据中找到对应的知识点（用于调试信息）
+    const knowledgeNode = knowledgeGraph.nodes.find((node: any) => node.id === nodeId);
+    
+    // 保存错误信息用于调试
+    if (onAiResponse) {
+      onAiResponse({
+        nodeId,
+        knowledgeNode,
+        questionCount: 2,
+        aiResponse: null,
+        error: error instanceof Error ? error.message : String(error),
+        fallbackUsed: true,
+        timestamp: new Date().toISOString()
+      });
+    }
     
     // 返回备用测试题
     return [
@@ -128,6 +155,27 @@ const generateQuizForNode = async (nodeId: string): Promise<Quiz[]> => {
   }
 };
 
+// 可复用的ReactMarkdown组件配置
+const markdownComponents = {
+  code: ({ className, children, ...props }: any) => {
+    const hasLanguageClass = className && className.startsWith('language-');
+    const hasNewlines = String(children).includes('\n');
+    const isCodeBlock = hasLanguageClass || hasNewlines;
+    
+    return isCodeBlock ? (
+      <pre className="bg-gray-100 rounded-lg p-3 overflow-x-auto my-2 border">
+        <code className={`font-mono text-sm ${className || ''}`} {...props}>
+          {children}
+        </code>
+      </pre>
+    ) : (
+      <code className="bg-gray-200 px-1 py-0.5 rounded text-sm font-mono" {...props}>
+        {children}
+      </code>
+    );
+  }
+};
+
 export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
@@ -136,6 +184,8 @@ export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [aiResponse, setAiResponse] = useState<any>(null);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
 
   useEffect(() => {
     if (nodeId) {
@@ -148,7 +198,9 @@ export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
       setIsLoading(true);
       
       // 使用AI服务生成测试题
-      generateQuizForNode(nodeId)
+      generateQuizForNode(nodeId, (response) => {
+        setAiResponse(response);
+      })
         .then(generatedQuizzes => {
           setQuizzes(generatedQuizzes);
           setIsLoading(false);
@@ -238,22 +290,81 @@ export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-2xl font-bold text-gray-900">
             {showResult ? '测试结果' : `测试题 ${currentQuizIndex + 1}/${quizzes.length}`}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowDebugInfo(!showDebugInfo)}
+              className="px-4 py-2 text-sm font-medium bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 rounded-md transition-colors"
+              title="显示/隐藏AI调试信息"
+            >
+              🔧 {showDebugInfo ? '隐藏调试' : '显示调试'}
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
+          {/* Debug Info */}
+          {showDebugInfo && aiResponse && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+              <h3 className="text-lg font-semibold mb-3 text-gray-800">AI调试信息</h3>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700">节点ID:</span>
+                  <span className="ml-2 text-gray-600">{aiResponse.nodeId}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">生成时间:</span>
+                  <span className="ml-2 text-gray-600">{new Date(aiResponse.timestamp).toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">题目数量:</span>
+                  <span className="ml-2 text-gray-600">{aiResponse.questionCount}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">知识点内容:</span>
+                  <div className="mt-1 p-2 bg-white rounded border text-xs max-h-32 overflow-y-auto">
+                    {JSON.stringify(aiResponse.knowledgeNode, null, 2)}
+                  </div>
+                </div>
+                {aiResponse.error && (
+                  <div>
+                    <span className="font-medium text-red-700">错误信息:</span>
+                    <div className="mt-1 p-2 bg-red-50 rounded border border-red-200 text-xs">
+                      {aiResponse.error}
+                    </div>
+                  </div>
+                )}
+                {aiResponse.fallbackUsed && (
+                  <div>
+                    <span className="font-medium text-yellow-700">状态:</span>
+                    <span className="ml-2 text-yellow-600">使用备用题目</span>
+                  </div>
+                )}
+                <div>
+                  <span className="font-medium text-gray-700">AI原始响应:</span>
+                  <div className="mt-1 p-2 bg-white rounded border text-xs max-h-40 overflow-y-auto">
+                    {aiResponse.aiResponse ? (
+                      <pre>{JSON.stringify(aiResponse.aiResponse, null, 2)}</pre>
+                    ) : (
+                      <span className="text-gray-500 italic">无AI响应数据（使用备用题目）</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -282,86 +393,20 @@ export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
                     return (
                       <div key={quiz.id} className="border rounded-lg p-4">
                         <div className="font-medium mb-2">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              code: ({ className, children, ...props }: any) => {
-                                const match = /language-(\w+)/.exec(className || '');
-                                const isInline = !match;
-                                return isInline ? (
-                                  <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props}>
-                                    {children}
-                                  </code>
-                                ) : (
-                                  <pre className="bg-gray-100 rounded p-2 overflow-x-auto text-sm">
-                                    <code className={className} {...props}>
-                                      {children}
-                                    </code>
-                                  </pre>
-                                );
-                              },
-                              p: ({ children }: any) => (
-                                <span className="leading-relaxed">{children}</span>
-                              ),
-                            }}
-                          >
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                             {quiz.question}
                           </ReactMarkdown>
                         </div>
                         <div className="text-sm text-gray-600 mb-2">
                           你的答案: <span className={isCorrect ? 'text-green-600' : 'text-red-600'}>
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              components={{
-                                code: ({ className, children, ...props }: any) => {
-                                  const match = /language-(\w+)/.exec(className || '');
-                                  const isInline = !match;
-                                  return isInline ? (
-                                    <code className="bg-gray-100 px-1 py-0.5 rounded text-xs" {...props}>
-                                      {children}
-                                    </code>
-                                  ) : (
-                                    <pre className="bg-gray-100 rounded p-1 overflow-x-auto text-xs">
-                                      <code className={className} {...props}>
-                                        {children}
-                                      </code>
-                                    </pre>
-                                  );
-                                },
-                                p: ({ children }: any) => (
-                                  <span className="leading-relaxed">{children}</span>
-                                ),
-                              }}
-                            >
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                               {quiz.options[userAnswer]}
                             </ReactMarkdown>
                           </span>
                           {!isCorrect && (
                             <span className="ml-2">
                               正确答案: <span className="text-green-600">
-                                <ReactMarkdown
-                                  remarkPlugins={[remarkGfm]}
-                                  components={{
-                                    code: ({ className, children, ...props }: any) => {
-                                      const match = /language-(\w+)/.exec(className || '');
-                                      const isInline = !match;
-                                      return isInline ? (
-                                        <code className="bg-gray-100 px-1 py-0.5 rounded text-xs" {...props}>
-                                          {children}
-                                        </code>
-                                      ) : (
-                                        <pre className="bg-gray-100 rounded p-1 overflow-x-auto text-xs">
-                                          <code className={className} {...props}>
-                                            {children}
-                                          </code>
-                                        </pre>
-                                      );
-                                    },
-                                    p: ({ children }: any) => (
-                                      <span className="leading-relaxed">{children}</span>
-                                    ),
-                                  }}
-                                >
+                                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                                   {quiz.options[quiz.correctAnswer]}
                                 </ReactMarkdown>
                               </span>
@@ -370,29 +415,7 @@ export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
                         </div>
                         {!isCorrect && (
                           <div className="text-sm text-gray-500 bg-gray-50 p-2 rounded">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              components={{
-                                code: ({ className, children, ...props }: any) => {
-                                  const match = /language-(\w+)/.exec(className || '');
-                                  const isInline = !match;
-                                  return isInline ? (
-                                    <code className="bg-gray-200 px-1 py-0.5 rounded text-xs" {...props}>
-                                      {children}
-                                    </code>
-                                  ) : (
-                                    <pre className="bg-gray-200 rounded p-2 overflow-x-auto text-xs">
-                                      <code className={className} {...props}>
-                                        {children}
-                                      </code>
-                                    </pre>
-                                  );
-                                },
-                                p: ({ children }: any) => (
-                                  <span className="leading-relaxed">{children}</span>
-                                ),
-                              }}
-                            >
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                               {quiz.explanation}
                             </ReactMarkdown>
                           </div>
@@ -423,29 +446,11 @@ export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
             <div>
               <div className="mb-6">
                 <div className="text-xl font-semibold mb-4 text-gray-900">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      code: ({ className, children, ...props }: any) => {
-                        const match = /language-(\w+)/.exec(className || '');
-                        const isInline = !match;
-                        return isInline ? (
-                          <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props}>
-                            {children}
-                          </code>
-                        ) : (
-                          <pre className="bg-gray-100 rounded-lg p-2 overflow-x-auto">
-                            <code className={className} {...props}>
-                              {children}
-                            </code>
-                          </pre>
-                        );
-                      },
-                      p: ({ children }: any) => (
-                        <span className="leading-relaxed">{children}</span>
-                      ),
-                    }}
-                  >
+
+                  <ReactMarkdown 
+                     remarkPlugins={[remarkGfm]}
+                     components={markdownComponents}
+                   >
                     {currentQuiz?.question || ''}
                   </ReactMarkdown>
                 </div>
@@ -460,32 +465,16 @@ export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                     >
-                      <span className="font-medium mr-3">{String.fromCharCode(65 + index)}.</span>
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          code: ({ className, children, ...props }: any) => {
-                            const match = /language-(\w+)/.exec(className || '');
-                            const isInline = !match;
-                            return isInline ? (
-                              <code className="bg-gray-200 px-1 py-0.5 rounded text-sm" {...props}>
-                                {children}
-                              </code>
-                            ) : (
-                              <pre className="bg-gray-200 rounded p-2 overflow-x-auto text-sm">
-                                <code className={className} {...props}>
-                                  {children}
-                                </code>
-                              </pre>
-                            );
-                          },
-                          p: ({ children }: any) => (
-                            <span className="leading-relaxed">{children}</span>
-                          ),
-                        }}
-                      >
-                        {option}
-                      </ReactMarkdown>
+                      <div className="flex-1">
+                        <span className="font-medium mr-3">{String.fromCharCode(65 + index)}.</span>
+
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          components={markdownComponents}
+                        >
+                          {option}
+                        </ReactMarkdown>
+                      </div>
                     </button>
                   ))}
                 </div>
