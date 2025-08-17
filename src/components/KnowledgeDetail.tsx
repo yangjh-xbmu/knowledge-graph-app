@@ -40,7 +40,7 @@ export default function KnowledgeDetail({ nodeId, onClose, onStartQuiz }: Knowle
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center gap-4">
@@ -61,7 +61,7 @@ export default function KnowledgeDetail({ nodeId, onClose, onStartQuiz }: Knowle
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 min-h-0">
           {/* Description */}
           <div className="mb-6">
             <p className="text-gray-600 text-lg">{node.description}</p>
