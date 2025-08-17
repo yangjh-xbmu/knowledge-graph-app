@@ -159,7 +159,12 @@ export default function Home() {
 
         {/* Knowledge Graph */}
         <div className="flex-1">
-          <KnowledgeGraph onNodeClick={handleNodeClick} />
+          <KnowledgeGraph 
+            data={knowledgeGraph}
+            selectedNodeId={selectedNodeId}
+            onNodeClick={handleNodeClick}
+            masteredNodes={new Set()}
+          />
         </div>
       </div>
 

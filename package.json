@@ -10,14 +10,17 @@
   },
   "dependencies": {
     "@langchain/google-genai": "^0.2.16",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "daisyui": "^5.0.50",
     "langchain": "^0.3.30",
     "next": "15.4.6",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-markdown": "^10.1.0",
+    "react-syntax-highlighter": "^15.6.1",
     "reactflow": "^11.11.4",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "tailwind-scrollbar": "^4.0.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -1,18 +1,14 @@
-'use client';
-
 import React from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { KnowledgeNode } from '../types/knowledge';
 import { knowledgeGraph } from '../data/knowledgeData';
+import QuizMarkdownRenderer from './QuizMarkdownRenderer';
 
 interface KnowledgeDetailProps {
   nodeId: string | null;
   onClose: () => void;
-  onStartQuiz?: (nodeId: string) => void;
+  onStartQuiz: (nodeId: string) => void;
 }
 
-export default function KnowledgeDetail({ nodeId, onClose, onStartQuiz }: KnowledgeDetailProps) {
+const KnowledgeDetail: React.FC<KnowledgeDetailProps> = ({ nodeId, onClose, onStartQuiz }) => {
   if (!nodeId) return null;
 
   const node = knowledgeGraph.nodes.find(n => n.id === nodeId);
@@ -21,36 +17,43 @@ export default function KnowledgeDetail({ nodeId, onClose, onStartQuiz }: Knowle
   const getCategoryColor = (category: string) => {
     switch (category) {
       case 'basic':
-        return 'bg-blue-50 text-blue-800 border-blue-200';
+        return 'bg-blue-500';
       case 'advanced':
-        return 'bg-green-50 text-green-800 border-green-200';
+        return 'bg-green-500';
       case 'practical':
-        return 'bg-purple-50 text-purple-800 border-purple-200';
+        return 'bg-purple-500';
       default:
-        return 'bg-gray-50 text-gray-800 border-gray-200';
+        return 'bg-gray-500';
     }
   };
 
-  const getPrerequisites = () => {
-    return node.prerequisites.map(prereqId => {
-      const prereqNode = knowledgeGraph.nodes.find(n => n.id === prereqId);
-      return prereqNode ? prereqNode.title : prereqId;
-    });
+  const getCategoryName = (category: string) => {
+    switch (category) {
+      case 'basic':
+        return '核心基础';
+      case 'advanced':
+        return '进阶核心';
+      case 'practical':
+        return '高级与实践';
+      default:
+        return '未知';
+    }
   };
+
+  const prerequisites = node.prerequisites.map(id => 
+    knowledgeGraph.nodes.find(n => n.id === id)
+  ).filter(Boolean);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center gap-4">
+            <div className={`px-3 py-1 rounded-full text-white text-sm font-medium ${getCategoryColor(node.category)}`}>
+              {getCategoryName(node.category)} - L{node.level}
+            </div>
             <h2 className="text-2xl font-bold text-gray-900">{node.title}</h2>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getCategoryColor(node.category)}`}>
-              {node.category}
-            </span>
-            <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-sm font-bold">
-              Level {node.level}
-            </span>
           </div>
           <button
             onClick={onClose}
@@ -61,23 +64,21 @@ export default function KnowledgeDetail({ nodeId, onClose, onStartQuiz }: Knowle
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
           {/* Description */}
-          <div className="mb-6">
-            <p className="text-gray-600 text-lg">{node.description}</p>
-          </div>
+          <p className="text-gray-600 mb-6">{node.description}</p>
 
           {/* Prerequisites */}
-          {node.prerequisites.length > 0 && (
+          {prerequisites.length > 0 && (
             <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3 text-gray-900">前置知识</h3>
+              <h3 className="text-lg font-semibold mb-3">前置知识</h3>
               <div className="flex flex-wrap gap-2">
-                {getPrerequisites().map((prereq, index) => (
+                {prerequisites.map(prereq => prereq && (
                   <span
-                    key={index}
-                    className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm"
+                    key={prereq.id}
+                    className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
                   >
-                    {prereq}
+                    {prereq.title}
                   </span>
                 ))}
               </div>
@@ -86,66 +87,20 @@ export default function KnowledgeDetail({ nodeId, onClose, onStartQuiz }: Knowle
 
           {/* Main Content */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3 text-gray-900">详细内容</h3>
-            <div className="prose prose-lg max-w-none">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  code: ({ className, children, ...props }: any) => {
-                    // 判断是否为代码块的逻辑：
-                    // 1. 有language-xxx的className（指定语言的代码块）
-                    // 2. 或者内容包含换行符（没有指定语言的代码块）
-                    const hasLanguageClass = className && className.startsWith('language-');
-                    const hasNewlines = String(children).includes('\n');
-                    const isCodeBlock = hasLanguageClass || hasNewlines;
-                    
-                    return isCodeBlock ? (
-                      <pre className="bg-gray-100 rounded-lg p-4 overflow-x-auto">
-                        <code className={className} {...props}>
-                          {children}
-                        </code>
-                      </pre>
-                    ) : (
-                      <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
-                  h1: ({ children }: any) => (
-                    <h1 className="text-2xl font-bold mb-4 text-gray-900">{children}</h1>
-                  ),
-                  h2: ({ children }: any) => (
-                    <h2 className="text-xl font-bold mb-3 text-gray-900">{children}</h2>
-                  ),
-                  h3: ({ children }: any) => (
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900">{children}</h3>
-                  ),
-                  p: ({ children }: any) => (
-                    <p className="mb-4 text-gray-700 leading-relaxed">{children}</p>
-                  ),
-                  ul: ({ children }: any) => (
-                    <ul className="list-disc list-inside mb-4 text-gray-700">{children}</ul>
-                  ),
-                  li: ({ children }: any) => (
-                    <li className="mb-1">{children}</li>
-                  ),
-                }}
-              >
-                {node.content}
-              </ReactMarkdown>
+            <h3 className="text-lg font-semibold mb-3">详细内容</h3>
+            <div className="prose max-w-none">
+              <QuizMarkdownRenderer content={node.content} />
             </div>
           </div>
 
           {/* Examples */}
           {node.examples.length > 0 && (
             <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3 text-gray-900">代码示例</h3>
+              <h3 className="text-lg font-semibold mb-3">代码示例</h3>
               <div className="space-y-4">
                 {node.examples.map((example, index) => (
-                  <div key={index} className="bg-gray-900 text-gray-100 rounded-lg p-4 overflow-x-auto">
-                    <pre className="text-sm">
-                      <code>{example}</code>
-                    </pre>
+                  <div key={index} className="bg-gray-50 rounded-lg p-4">
+                    <QuizMarkdownRenderer content={`\`\`\`typescript\n${example}\n\`\`\``} />
                   </div>
                 ))}
               </div>
@@ -154,30 +109,28 @@ export default function KnowledgeDetail({ nodeId, onClose, onStartQuiz }: Knowle
         </div>
 
         {/* Footer */}
-        <div className="border-t p-6 bg-gray-50">
-          <div className="flex justify-between items-center">
-            <div className="text-sm text-gray-500">
-              完成这个知识点后，可以继续学习相关的进阶内容
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
-              >
-                关闭
-              </button>
-              {onStartQuiz && (
-                <button
-                  onClick={() => onStartQuiz(nodeId)}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
-                >
-                  开始测试
-                </button>
-              )}
-            </div>
+        <div className="flex items-center justify-between p-6 border-t bg-gray-50">
+          <div className="text-sm text-gray-500">
+            点击开始测验来检验你的理解程度
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+            >
+              关闭
+            </button>
+            <button
+              onClick={() => onStartQuiz(node.id)}
+              className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors"
+            >
+              开始测验
+            </button>
           </div>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default KnowledgeDetail;
