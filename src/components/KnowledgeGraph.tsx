@@ -17,10 +17,19 @@ import 'reactflow/dist/style.css';
 
 import { knowledgeGraph } from '../data/knowledgeData';
 import { KnowledgeNode as KnowledgeNodeType } from '../types/knowledge';
+import { masteryService } from '../services/masteryService';
 
 // 自定义节点组件
 const KnowledgeNode = ({ data }: { data: KnowledgeNodeType }) => {
-  const getCategoryColor = (category: string) => {
+  const isMastered = masteryService.isMastered(data.id);
+  const masteryState = masteryService.getMasteryState(data.id);
+
+  const getCategoryColor = (category: string, mastered: boolean) => {
+    if (mastered) {
+      // 已掌握的知识点使用金色主题
+      return 'bg-yellow-50 border-yellow-400 text-yellow-900 shadow-yellow-200';
+    }
+    
     switch (category) {
       case 'basic':
         return 'bg-blue-100 border-blue-300 text-blue-800';
@@ -41,15 +50,34 @@ const KnowledgeNode = ({ data }: { data: KnowledgeNodeType }) => {
     );
   };
 
+  const getMasteryBadge = () => {
+    if (!isMastered || !masteryState) return null;
+    
+    const scoreText = masteryState.quizScore ? `${masteryState.quizScore.toFixed(0)}%` : '已掌握';
+    return (
+      <span className="absolute -top-2 -left-2 bg-green-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold" title={`已掌握 (${scoreText})`}>
+        ✓
+      </span>
+    );
+  };
+
+  const borderStyle = isMastered ? 'border-3 border-yellow-400 shadow-lg' : 'border-2';
+
   return (
-    <div className={`relative px-4 py-3 rounded-lg border-2 shadow-md min-w-[200px] max-w-[250px] ${getCategoryColor(data.category)}`}>
+    <div className={`relative px-4 py-3 rounded-lg ${borderStyle} shadow-md min-w-[200px] max-w-[250px] ${getCategoryColor(data.category, isMastered)}`}>
       {getLevelBadge(data.level)}
+      {getMasteryBadge()}
       <div className="font-bold text-sm mb-1">{data.title}</div>
       <div className="text-xs opacity-80">{data.description}</div>
-      <div className="mt-2 text-xs">
+      <div className="mt-2 text-xs flex justify-between items-center">
         <span className="inline-block bg-white bg-opacity-50 px-2 py-1 rounded text-xs">
           {data.category}
         </span>
+        {isMastered && masteryState && masteryState.quizScore && (
+          <span className="text-green-600 font-semibold text-xs">
+            {masteryState.quizScore.toFixed(0)}%
+          </span>
+        )}
       </div>
     </div>
   );

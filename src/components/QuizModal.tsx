@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Quiz } from '../types/knowledge';
 import { aiService, QuizQuestion } from '../services/aiService';
 import { knowledgeGraph } from '../data/knowledgeData';
+import { masteryService } from '../services/masteryService';
 
 interface QuizModalProps {
   nodeId: string | null;
@@ -14,11 +15,72 @@ interface QuizModalProps {
 const convertToQuiz = (question: QuizQuestion, nodeId: string): Quiz => {
   return {
     id: question.id,
-    nodeId: nodeId,
+    nodeId,
     question: question.question,
     options: question.options,
     correctAnswer: question.correctAnswer,
     explanation: question.explanation
+  };
+};
+
+// 智能分析知识点内容结构，动态计算题目数量
+const calculateQuestionCount = (knowledgeNode: any): number => {
+  const content = knowledgeNode.content || '';
+  const examples = knowledgeNode.examples || [];
+  
+  // 分析内容结构的复杂度指标
+  const structuralComplexity = analyzeContentStructure(content);
+  
+  // 基础题目数量：根据结构复杂度
+  let baseCount = Math.max(3, Math.min(10, structuralComplexity.conceptCount));
+  
+  // 根据内容深度调整
+  const depthMultiplier = 1 + (structuralComplexity.depth - 1) * 0.2;
+  
+  // 根据示例数量调整（每个示例增加0.5题）
+  const exampleBonus = Math.min(3, examples.length * 0.5);
+  
+  // 最终计算
+  const finalCount = Math.round(baseCount * depthMultiplier + exampleBonus);
+  return Math.max(3, Math.min(12, finalCount)); // 限制在3-12题之间
+};
+
+// 分析内容结构复杂度
+const analyzeContentStructure = (content: string) => {
+  // 统计标题层级（## ### ####等）
+  const headingMatches = content.match(/^#{2,6}\s+/gm) || [];
+  const headingCount = headingMatches.length;
+  
+  // 统计列表项（- * +开头的行）
+  const listMatches = content.match(/^\s*[-*+]\s+/gm) || [];
+  const listItemCount = listMatches.length;
+  
+  // 统计代码块
+  const codeBlockMatches = content.match(/```[\s\S]*?```/g) || [];
+  const codeBlockCount = codeBlockMatches.length;
+  
+  // 统计行内代码
+  const inlineCodeMatches = content.match(/`[^`]+`/g) || [];
+  const inlineCodeCount = inlineCodeMatches.length;
+  
+  // 计算概念密度（基于关键词和结构）
+  const conceptCount = Math.max(
+    headingCount, // 每个标题代表一个概念
+    Math.ceil(listItemCount / 3), // 每3个列表项约等于一个概念
+    Math.ceil((codeBlockCount + inlineCodeCount) / 2) // 代码示例也代表概念
+  );
+  
+  // 计算内容深度（基于标题层级）
+  const maxHeadingLevel = headingMatches.reduce((max, heading) => {
+    const level = (heading.match(/#/g) || []).length;
+    return Math.max(max, level - 1); // -1因为我们从##开始计算
+  }, 1);
+  
+  return {
+    conceptCount: Math.max(3, conceptCount), // 至少3个概念
+    depth: Math.max(1, maxHeadingLevel),
+    hasCode: codeBlockCount > 0 || inlineCodeCount > 0,
+    structuralRichness: headingCount + listItemCount + codeBlockCount
   };
 };
 
@@ -31,8 +93,11 @@ const generateQuizForNode = async (nodeId: string): Promise<Quiz[]> => {
       throw new Error(`Knowledge node with id ${nodeId} not found`);
     }
 
+    // 根据知识点内容动态计算题目数量
+    const questionCount = calculateQuestionCount(knowledgeNode);
+    
     // 使用AI服务生成测试题
-    const quizData = await aiService.generateQuiz(knowledgeNode, 3);
+    const quizData = await aiService.generateQuiz(knowledgeNode, questionCount);
     
     // 转换为Quiz类型
     return quizData.questions.map(question => convertToQuiz(question, nodeId));
@@ -72,6 +137,12 @@ export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
 
   useEffect(() => {
     if (nodeId) {
+      // 重置所有状态
+      setCurrentQuizIndex(0);
+      setSelectedAnswer(null);
+      setShowResult(false);
+      setScore(0);
+      setAnswers([]);
       setIsLoading(true);
       
       // 使用AI服务生成测试题
@@ -104,12 +175,22 @@ export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
     const newAnswers = [...answers, selectedAnswer];
     setAnswers(newAnswers);
 
+    let finalScore = score;
     if (selectedAnswer === currentQuiz.correctAnswer) {
-      setScore(score + 1);
+      finalScore = score + 1;
+      setScore(finalScore);
     }
 
     if (isLastQuiz) {
       setShowResult(true);
+      
+      // 计算最终分数百分比
+      const scorePercentage = (finalScore / quizzes.length) * 100;
+      
+      // 如果分数达到80%或以上，标记为已掌握
+      if (scorePercentage >= 80 && nodeId) {
+        masteryService.markAsMastered(nodeId, scorePercentage);
+      }
     } else {
       setCurrentQuizIndex(currentQuizIndex + 1);
       setSelectedAnswer(null);
@@ -192,7 +273,7 @@ export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
               {/* Answer Review */}
               <div className="text-left mb-8">
                 <h3 className="text-lg font-semibold mb-4">答题回顾</h3>
-                <div className="space-y-4">
+                <div className="max-h-96 overflow-y-auto pr-2 space-y-4">
                   {quizzes.map((quiz, index) => {
                     const userAnswer = answers[index];
                     const isCorrect = userAnswer === quiz.correctAnswer;

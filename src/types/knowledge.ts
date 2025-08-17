@@ -8,6 +8,8 @@ export interface KnowledgeNode {
   content: string;
   examples: string[];
   position: { x: number; y: number };
+  isMastered?: boolean;
+  masteredAt?: Date;
 }
 
 export interface KnowledgeEdge {
@@ -30,4 +32,12 @@ export interface Quiz {
 export interface KnowledgeGraph {
   nodes: KnowledgeNode[];
   edges: KnowledgeEdge[];
+}
+
+export interface MasteryState {
+  nodeId: string;
+  isMastered: boolean;
+  masteredAt: Date;
+  quizScore?: number;
+  quizAttempts?: number;
 }
