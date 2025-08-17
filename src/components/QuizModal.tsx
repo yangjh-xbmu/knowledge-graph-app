@@ -2,89 +2,63 @@
 
 import React, { useState, useEffect } from 'react';
 import { Quiz } from '../types/knowledge';
+import { aiService, QuizQuestion } from '../services/aiService';
+import { knowledgeGraph } from '../data/knowledgeData';
 
 interface QuizModalProps {
   nodeId: string | null;
   onClose: () => void;
 }
 
-// 模拟AI生成的测试题数据
-const generateQuizForNode = (nodeId: string): Quiz[] => {
-  const quizData: Record<string, Quiz[]> = {
-    'basic-types': [
-      {
-        id: 'q1',
-        nodeId: 'basic-types',
-        question: '以下哪个是TypeScript新增的类型？',
-        options: ['string', 'number', 'unknown', 'boolean'],
-        correctAnswer: 2,
-        explanation: 'unknown是TypeScript新增的类型，它是any的安全版本，使用前必须进行类型检查。'
-      },
-      {
-        id: 'q2',
-        nodeId: 'basic-types',
-        question: '元组(Tuple)的正确写法是？',
-        options: ['[string, number]', 'Array<string, number>', '{string, number}', 'string | number'],
-        correctAnswer: 0,
-        explanation: '元组使用方括号表示，如[string, number]表示一个已知长度和类型的数组。'
-      },
-      {
-        id: 'q3',
-        nodeId: 'basic-types',
-        question: '什么时候应该使用any类型？',
-        options: ['任何时候都可以使用', '从JavaScript迁移时临时使用', '定义复杂对象时', '性能要求高的场景'],
-        correctAnswer: 1,
-        explanation: 'any类型会放弃类型检查，应该慎用。主要在从JavaScript迁移到TypeScript时临时使用。'
-      }
-    ],
-    'functions': [
-      {
-        id: 'q4',
-        nodeId: 'functions',
-        question: '可选参数的正确语法是？',
-        options: ['name: string?', 'name?: string', 'name: ?string', 'optional name: string'],
-        correctAnswer: 1,
-        explanation: '可选参数使用?:语法，如name?: string表示name参数是可选的。'
-      },
-      {
-        id: 'q5',
-        nodeId: 'functions',
-        question: '函数重载的作用是什么？',
-        options: ['提高性能', '为同一函数提供多个类型定义', '减少代码量', '支持异步操作'],
-        correctAnswer: 1,
-        explanation: '函数重载允许为同一个函数提供多个函数类型定义，以支持不同的参数组合。'
-      }
-    ],
-    'generics': [
-      {
-        id: 'q6',
-        nodeId: 'generics',
-        question: '泛型的核心作用是什么？',
-        options: ['提高运行速度', '创建可重用的组件', '减少内存使用', '简化语法'],
-        correctAnswer: 1,
-        explanation: '泛型的核心作用是创建可重用的组件，使其能够处理多种数据类型而不是单一类型。'
-      },
-      {
-        id: 'q7',
-        nodeId: 'generics',
-        question: '泛型约束使用哪个关键字？',
-        options: ['implements', 'extends', 'constrains', 'limits'],
-        correctAnswer: 1,
-        explanation: '泛型约束使用extends关键字，如<T extends Lengthwise>限制泛型类型必须包含length属性。'
-      }
-    ]
+// 将AI服务的QuizQuestion转换为Quiz类型
+const convertToQuiz = (question: QuizQuestion, nodeId: string): Quiz => {
+  return {
+    id: question.id,
+    nodeId: nodeId,
+    question: question.question,
+    options: question.options,
+    correctAnswer: question.correctAnswer,
+    explanation: question.explanation
   };
+};
 
-  return quizData[nodeId] || [
-    {
-      id: 'default',
-      nodeId,
-      question: '这个知识点的核心概念是什么？',
-      options: ['选项A', '选项B', '选项C', '选项D'],
-      correctAnswer: 0,
-      explanation: '这是一个示例题目，实际应用中会根据知识点内容生成相应的测试题。'
+// 使用AI服务生成测试题
+const generateQuizForNode = async (nodeId: string): Promise<Quiz[]> => {
+  try {
+    // 从知识数据中找到对应的知识点
+    const knowledgeNode = knowledgeGraph.nodes.find((node: any) => node.id === nodeId);
+    if (!knowledgeNode) {
+      throw new Error(`Knowledge node with id ${nodeId} not found`);
     }
-  ];
+
+    // 使用AI服务生成测试题
+    const quizData = await aiService.generateQuiz(knowledgeNode, 3);
+    
+    // 转换为Quiz类型
+    return quizData.questions.map(question => convertToQuiz(question, nodeId));
+  } catch (error) {
+    console.error('Error generating quiz:', error);
+    
+    // 返回备用测试题
+    return [
+      {
+        id: 'fallback-1',
+        nodeId,
+        question: '这个知识点的核心概念是什么？',
+        options: ['基础概念', '高级特性', '实用技巧', '最佳实践'],
+        correctAnswer: 0,
+        explanation: '这是一个备用题目，当AI服务不可用时显示。请检查网络连接和API配置。'
+      },
+      {
+        id: 'fallback-2',
+        nodeId,
+        question: '学习这个知识点的最佳方式是什么？',
+        options: ['理论学习', '实践练习', '阅读文档', '以上都是'],
+        correctAnswer: 3,
+        explanation: '学习编程知识点需要理论与实践相结合，多方面学习效果最佳。'
+      }
+    ];
+  }
 };
 
 export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
@@ -99,12 +73,19 @@ export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
   useEffect(() => {
     if (nodeId) {
       setIsLoading(true);
-      // 模拟AI生成题目的延迟
-      setTimeout(() => {
-        const generatedQuizzes = generateQuizForNode(nodeId);
-        setQuizzes(generatedQuizzes);
-        setIsLoading(false);
-      }, 1000);
+      
+      // 使用AI服务生成测试题
+      generateQuizForNode(nodeId)
+        .then(generatedQuizzes => {
+          setQuizzes(generatedQuizzes);
+          setIsLoading(false);
+        })
+        .catch(error => {
+          console.error('Failed to generate quiz:', error);
+          setIsLoading(false);
+          // 设置空数组，让用户知道生成失败
+          setQuizzes([]);
+        });
     }
   }, [nodeId]);
 
@@ -141,6 +122,21 @@ export default function QuizModal({ nodeId, onClose }: QuizModalProps) {
     setShowResult(false);
     setScore(0);
     setAnswers([]);
+    setIsLoading(true);
+    
+    // 重新生成测试题
+    if (nodeId) {
+      generateQuizForNode(nodeId)
+        .then(generatedQuizzes => {
+          setQuizzes(generatedQuizzes);
+          setIsLoading(false);
+        })
+        .catch(error => {
+          console.error('Failed to regenerate quiz:', error);
+          setIsLoading(false);
+          setQuizzes([]);
+        });
+    }
   };
 
   const getScoreColor = () => {
