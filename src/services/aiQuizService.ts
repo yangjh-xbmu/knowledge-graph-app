@@ -1,9 +1,4 @@
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { PromptTemplate } from '@langchain/core/prompts';
-import { RunnableSequence } from '@langchain/core/runnables';
-import { StringOutputParser } from '@langchain/core/output_parsers';
 import yaml from 'js-yaml';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 
 // 测试题数据结构
 export interface AIQuizQuestion {
@@ -69,74 +64,27 @@ export function parseQuizYAML(yamlContent: string): AIQuizData {
   }
 }
 
-// AI测试题生成服务
+// AI测试题生成服务（客户端版本）
 export class AIQuizService {
-  private model: ChatGoogleGenerativeAI;
-  private promptTemplate: PromptTemplate;
-  private chain: RunnableSequence<Record<string, string>, string>;
+  private preferredModel: 'kimi' | 'gemini' = 'kimi'; // 默认使用kimi模型
 
   constructor() {
-    // 配置代理
-    const proxyUrl = 'http://127.0.0.1:10808';
-    const proxyAgent = new HttpsProxyAgent(proxyUrl);
-    
-    console.log('AI Quiz Service使用代理:', proxyUrl);
-    
-    // 初始化Gemini模型
-    this.model = new ChatGoogleGenerativeAI({
-      model: 'gemini-2.0-flash-exp',
-      temperature: 0.7,
-      apiKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY,
-      // @ts-expect-error - Node.js specific agent option for proxy
-      agent: proxyAgent,
-    });
+    // 客户端版本不需要初始化任何 Node.js 特定的依赖
+  }
 
-    // 创建提示模板
-    this.promptTemplate = PromptTemplate.fromTemplate(`
-你是一个专业的教育测试题生成专家。请根据以下知识点内容生成高质量的测试题。
+  /**
+   * 设置首选的AI模型
+   */
+  setPreferredModel(model: 'kimi' | 'gemini') {
+    this.preferredModel = model;
+    console.log(`AIQuizService切换到模型: ${model}`);
+  }
 
-知识点标题: {title}
-知识点描述: {description}
-知识点内容: {content}
-
-请生成3-5道测试题，涵盖不同难度级别。输出格式必须是严格的YAML格式，结构如下：
-
-title: "测试题标题"
-description: "测试题描述"
-questions:
-  - question: "题目内容"
-    options:
-      - "选项A"
-      - "选项B"
-      - "选项C"
-      - "选项D"
-    correctAnswer: 0  # 正确答案的索引（0-3）
-    explanation: "答案解释"
-    difficulty: "easy"  # easy, medium, hard
-  - question: "第二题内容"
-    options:
-      - "选项A"
-      - "选项B"
-      - "选项C"
-      - "选项D"
-    correctAnswer: 1
-    explanation: "答案解释"
-    difficulty: "medium"
-
-要求：
-1. 题目要准确反映知识点内容
-2. 选项要有一定的迷惑性但不能过于刁钻
-3. 解释要清晰明了
-4. 难度要合理分布
-5. 严格按照YAML格式输出，不要添加任何其他内容
-`);
-
-    // 创建处理链
-    this.chain = RunnableSequence.from([
-      this.promptTemplate,
-      this.model,
-      new StringOutputParser()
-    ]);
+  /**
+   * 获取当前首选模型
+   */
+  getPreferredModel(): 'kimi' | 'gemini' {
+    return this.preferredModel;
   }
 
   /**
@@ -146,31 +94,38 @@ questions:
     title: string;
     description: string;
     content: string;
-  }): Promise<AIQuizData> {
+  }, modelType?: 'kimi' | 'gemini'): Promise<AIQuizData> {
     try {
-      console.log('开始AI生成测试题:', knowledgeNode);
-      console.log('API Key状态:', this.model ? '模型已初始化' : '模型未初始化');
+      const useModel = modelType || this.preferredModel;
+      console.log(`开始使用 ${useModel} 模型生成AI测试题...`);
       
-      // 调用AI生成YAML内容
-      console.log('调用AI链...');
-      const yamlContent = await this.chain.invoke({
-        title: knowledgeNode.title,
-        description: knowledgeNode.description,
-        content: knowledgeNode.content
+      // 通过 API 路由生成测试题
+      const response = await fetch('/api/generate-quiz', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: knowledgeNode.title,
+          description: knowledgeNode.description,
+          content: knowledgeNode.content,
+          model: useModel // 添加模型选择参数
+        })
       });
-      
-      console.log('AI生成的YAML内容:', yamlContent);
 
-      // 解析YAML内容
-      console.log('开始解析YAML...');
-      const quizData = parseQuizYAML(yamlContent);
-      console.log('解析后的测试题数据:', quizData);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const quizData = await response.json();
       
+      console.log('解析后的测试题数据:', quizData);
+
       return quizData;
     } catch (error) {
-      console.error('AI测试题生成失败:', error);
-      console.error('错误堆栈:', error instanceof Error ? error.stack : '无堆栈信息');
-      throw new Error('生成测试题时发生错误，请稍后重试');
+      console.error(`生成AI测试题失败 (${modelType || this.preferredModel}):`, error);
+      throw new Error(`生成测试题失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

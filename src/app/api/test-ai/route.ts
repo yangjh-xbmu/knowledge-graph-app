@@ -3,12 +3,19 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 export async function POST(request: NextRequest) {
   try {
     console.log('API路由: 开始AI测试...');
     console.log('API路由: GOOGLE_API_KEY存在:', !!process.env.GOOGLE_API_KEY);
     console.log('API路由: NEXT_PUBLIC_GOOGLE_API_KEY存在:', !!process.env.NEXT_PUBLIC_GOOGLE_API_KEY);
+    
+    // 配置代理（仅在服务器端）
+    const proxyUrl = 'http://127.0.0.1:10808';
+    const proxyAgent = new HttpsProxyAgent(proxyUrl);
+    
+    console.log('API路由: 使用代理:', proxyUrl);
     
     const apiKey = process.env.GOOGLE_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
     
@@ -24,6 +31,8 @@ export async function POST(request: NextRequest) {
       model: 'gemini-2.5-flash',
       temperature: 0.3,
       apiKey: apiKey,
+      // @ts-expect-error - Node.js specific agent option for proxy
+      agent: proxyAgent,
     });
     
     console.log('API路由: 模型已创建，创建LangChain链...');

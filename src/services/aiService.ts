@@ -1,4 +1,5 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatMoonshot } from '@langchain/community/chat_models/moonshot';
 import { HumanMessage } from '@langchain/core/messages';
 import { KnowledgeNode } from '../types/knowledge';
 import { HttpsProxyAgent } from 'https-proxy-agent';
@@ -22,15 +23,52 @@ export interface QuizMarkdown {
   knowledgeTitle: string;
 }
 
-class AIService {
-  private model: ChatGoogleGenerativeAI | null = null;
+type AIModelType = 'kimi' | 'gemini';
 
-  private initializeModel() {
-    if (this.model) return;
+class AIService {
+  private kimiModel: ChatMoonshot | null = null;
+  private geminiModel: ChatGoogleGenerativeAI | null = null;
+  private currentModel: AIModelType = 'kimi'; // 默认使用kimi模型
+
+  // 设置当前使用的模型
+  setModel(modelType: AIModelType) {
+    this.currentModel = modelType;
+    console.log(`AI Service切换到模型: ${modelType}`);
+  }
+
+  // 获取当前模型类型
+  getCurrentModel(): AIModelType {
+    return this.currentModel;
+  }
+
+  private initializeKimiModel() {
+    if (this.kimiModel) return;
+    
+    const kimiApiKey = process.env.NEXT_PUBLIC_KIMI_API_KEY || process.env.KIMI_API_KEY;
+    if (!kimiApiKey) {
+      console.warn('KIMI_API_KEY is not set in environment variables.');
+      return;
+    }
+
+    try {
+      console.log('AI Service初始化Kimi模型...');
+      
+      this.kimiModel = new ChatMoonshot({
+        model: 'moonshot-v1-8k',
+        temperature: 0.3,
+        apiKey: kimiApiKey,
+      });
+    } catch (error) {
+      console.error('Failed to initialize Kimi model:', error);
+    }
+  }
+
+  private initializeGeminiModel() {
+    if (this.geminiModel) return;
     
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
     if (!apiKey) {
-      console.warn('GOOGLE_API_KEY is not set in environment variables. AI features will use fallback data.');
+      console.warn('GOOGLE_API_KEY is not set in environment variables.');
       return;
     }
 
@@ -39,9 +77,9 @@ class AIService {
       const proxyUrl = 'http://127.0.0.1:10808';
       const proxyAgent = new HttpsProxyAgent(proxyUrl);
       
-      console.log('AI Service使用代理:', proxyUrl);
+      console.log('AI Service初始化Gemini模型，使用代理:', proxyUrl);
       
-      this.model = new ChatGoogleGenerativeAI({
+      this.geminiModel = new ChatGoogleGenerativeAI({
         model: 'gemini-2.5-flash',
         temperature: 0.3,
         apiKey: apiKey,
@@ -49,32 +87,69 @@ class AIService {
         agent: proxyAgent,
       });
     } catch (error) {
-      console.error('Failed to initialize AI model:', error);
+      console.error('Failed to initialize Gemini model:', error);
+    }
+  }
+
+  private getActiveModel() {
+    if (this.currentModel === 'kimi') {
+      this.initializeKimiModel();
+      return this.kimiModel;
+    } else {
+      this.initializeGeminiModel();
+      return this.geminiModel;
     }
   }
 
   // 🎯 核心方法：直接生成Markdown格式的测验
-  async generateQuizMarkdown(knowledge: KnowledgeNode, questionCount: number = 5): Promise<QuizMarkdown> {
-    this.initializeModel();
+  async generateQuizMarkdown(knowledge: KnowledgeNode, questionCount: number = 5, modelType?: AIModelType): Promise<QuizMarkdown> {
+    // 如果指定了模型类型，则临时切换
+    const originalModel = this.currentModel;
+    if (modelType && modelType !== this.currentModel) {
+      this.setModel(modelType);
+    }
     
-    if (!this.model) {
-      console.log('AI model not available, using fallback quiz');
+    const activeModel = this.getActiveModel();
+    
+    if (!activeModel) {
+      console.log(`${this.currentModel} model not available, using fallback quiz`);
+      // 恢复原始模型设置
+      if (modelType && modelType !== originalModel) {
+        this.setModel(originalModel);
+      }
       return this.getFallbackQuizMarkdown(knowledge);
     }
     
     const prompt = this.createQuizPrompt(knowledge, questionCount);
     
     try {
-      const response = await this.model.invoke([
+      console.log(`使用 ${this.currentModel} 模型生成测验...`);
+      const startTime = Date.now();
+      
+      const response = await activeModel.invoke([
         new HumanMessage(prompt)
       ]);
+
+      const responseTime = Date.now() - startTime;
+      console.log(`${this.currentModel} 模型响应时间: ${responseTime}ms`);
+
+      // 恢复原始模型设置
+      if (modelType && modelType !== originalModel) {
+        this.setModel(originalModel);
+      }
 
       return {
         content: response.content as string,
         knowledgeTitle: knowledge.title
       };
     } catch (error) {
-      console.error('Error generating quiz:', error);
+      console.error(`Error generating quiz with ${this.currentModel}:`, error);
+      
+      // 恢复原始模型设置
+      if (modelType && modelType !== originalModel) {
+        this.setModel(originalModel);
+      }
+      
       return this.getFallbackQuizMarkdown(knowledge);
     }
   }
