@@ -1,6 +1,7 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage } from '@langchain/core/messages';
 import { KnowledgeNode } from '../types/knowledge';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 export interface QuizQuestion {
   id: string;
@@ -34,10 +35,18 @@ class AIService {
     }
 
     try {
+      // 配置代理
+      const proxyUrl = 'http://127.0.0.1:10808';
+      const proxyAgent = new HttpsProxyAgent(proxyUrl);
+      
+      console.log('AI Service使用代理:', proxyUrl);
+      
       this.model = new ChatGoogleGenerativeAI({
         model: 'gemini-2.5-flash',
         temperature: 0.3,
         apiKey: apiKey,
+        // @ts-expect-error - Node.js specific agent option for proxy
+        agent: proxyAgent,
       });
     } catch (error) {
       console.error('Failed to initialize AI model:', error);

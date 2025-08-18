@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { knowledgeGraph } from '../data/knowledgeData';
 import { Quiz } from '../types/knowledge';
+import { AIQuizService } from '../services/aiQuizService';
 
 interface QuizModalProps {
   nodeId: string | null;
@@ -68,20 +69,80 @@ const QuizModal: React.FC<QuizModalProps> = ({ nodeId, onClose }) => {
   const [score, setScore] = useState(0);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [answers, setAnswers] = useState<number[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (nodeId) {
-      const nodeQuizzes = generateQuizForNode(nodeId);
-      setQuizzes(nodeQuizzes);
+    const loadQuizzes = async () => {
+      if (!nodeId) return;
+      
+      // 重置状态
       setCurrentQuestionIndex(0);
       setSelectedAnswer(null);
       setShowResult(false);
       setScore(0);
       setAnswers([]);
-    }
+      setError(null);
+      
+      setIsLoading(true);
+      try {
+        const node = knowledgeGraph.nodes.find(n => n.id === nodeId);
+         if (node) {
+           const aiQuizService = new AIQuizService();
+           const knowledgeContent = {
+             title: node.title,
+             description: node.description || '',
+             content: node.content || node.title
+           };
+           const aiQuizData = await aiQuizService.generateQuiz(knowledgeContent);
+          
+          // 转换AI生成的数据为Quiz格式
+          const convertedQuizzes: Quiz[] = aiQuizData.questions.map(q => ({
+            ...q,
+            nodeId
+          }));
+          
+          setQuizzes(convertedQuizzes);
+        }
+      } catch (err) {
+        console.error('AI生成测试题失败:', err);
+        console.error('错误详情:', {
+          message: err instanceof Error ? err.message : '未知错误',
+          stack: err instanceof Error ? err.stack : undefined,
+          nodeId,
+          node: knowledgeGraph.nodes.find(n => n.id === nodeId)
+        });
+        setError('AI生成测试题失败，将使用默认测试题');
+        // 回退到默认测试题
+        const nodeQuizzes = generateQuizForNode(nodeId);
+        setQuizzes(nodeQuizzes);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadQuizzes();
   }, [nodeId]);
 
-  if (!nodeId || quizzes.length === 0) return null;
+  if (!nodeId) return null;
+  
+  // 如果正在加载或没有测试题，显示相应状态
+  if (isLoading || (quizzes.length === 0 && !error)) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">
+              AI正在生成测试题...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (quizzes.length === 0) return null;
 
   const currentQuiz = quizzes[currentQuestionIndex];
   const node = knowledgeGraph.nodes.find(n => n.id === nodeId);
@@ -136,9 +197,19 @@ const QuizModal: React.FC<QuizModalProps> = ({ nodeId, onClose }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
-              {node?.title} - 测验
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold text-gray-900">
+                {node?.title} - 测验
+              </h2>
+              <span className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                AI生成
+              </span>
+            </div>
+            {error && (
+              <p className="text-yellow-600 text-sm mt-1">
+                {error}
+              </p>
+            )}
             {!showResult && (
               <p className="text-gray-600 text-sm mt-1">
                 问题 {currentQuestionIndex + 1} / {quizzes.length}
@@ -154,7 +225,7 @@ const QuizModal: React.FC<QuizModalProps> = ({ nodeId, onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto max-h-[calc(80vh-120px)]">
           {!showResult ? (
             <div>
               {/* Progress Bar */}

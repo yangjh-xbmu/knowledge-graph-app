@@ -109,11 +109,11 @@ const KnowledgeDetail: React.FC<KnowledgeDetailProps> = ({ nodeId, onClose, onSt
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t bg-gray-50">
-          <div className="text-sm text-gray-500">
-            点击开始测验来检验你的理解程度
+        <div className="p-6 border-t bg-gray-50">
+          <div className="text-sm text-gray-500 mb-4">
+            选择测验模式来检验你的理解程度
           </div>
-          <div className="flex gap-3">
+          <div className="flex items-center justify-between">
             <button
               onClick={onClose}
               className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
@@ -121,11 +121,11 @@ const KnowledgeDetail: React.FC<KnowledgeDetailProps> = ({ nodeId, onClose, onSt
               关闭
             </button>
             <button
-              onClick={() => onStartQuiz(node.id)}
-              className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors"
-            >
-              开始测验
-            </button>
+                  onClick={() => onStartQuiz(node.id)}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-medium rounded-lg transition-colors"
+                >
+                  开始测验
+                </button>
           </div>
         </div>
       </div>
