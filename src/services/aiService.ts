@@ -1,8 +1,6 @@
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatMoonshot } from '@langchain/community/chat_models/moonshot';
 import { HumanMessage } from '@langchain/core/messages';
 import { KnowledgeNode } from '../types/knowledge';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 
 export interface QuizQuestion {
   id: string;
@@ -23,20 +21,13 @@ export interface QuizMarkdown {
   knowledgeTitle: string;
 }
 
-type AIModelType = 'kimi' | 'gemini';
+type AIModelType = 'kimi';
 
 class AIService {
   private kimiModel: ChatMoonshot | null = null;
-  private geminiModel: ChatGoogleGenerativeAI | null = null;
-  private currentModel: AIModelType = 'kimi'; // 默认使用kimi模型
+  private currentModel: AIModelType = 'kimi'; // 只支持kimi模型
 
-  // 设置当前使用的模型
-  setModel(modelType: AIModelType) {
-    this.currentModel = modelType;
-    console.log(`AI Service切换到模型: ${modelType}`);
-  }
-
-  // 获取当前模型类型
+  // 获取当前模型类型（固定为kimi）
   getCurrentModel(): AIModelType {
     return this.currentModel;
   }
@@ -63,67 +54,27 @@ class AIService {
     }
   }
 
-  private initializeGeminiModel() {
-    if (this.geminiModel) return;
-    
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
-    if (!apiKey) {
-      console.warn('GOOGLE_API_KEY is not set in environment variables.');
-      return;
-    }
 
-    try {
-      // 配置代理
-      const proxyUrl = 'http://127.0.0.1:10808';
-      const proxyAgent = new HttpsProxyAgent(proxyUrl);
-      
-      console.log('AI Service初始化Gemini模型，使用代理:', proxyUrl);
-      
-      this.geminiModel = new ChatGoogleGenerativeAI({
-        model: 'gemini-2.5-flash',
-        temperature: 0.3,
-        apiKey: apiKey,
-        // @ts-expect-error - Node.js specific agent option for proxy
-        agent: proxyAgent,
-      });
-    } catch (error) {
-      console.error('Failed to initialize Gemini model:', error);
-    }
-  }
 
   private getActiveModel() {
-    if (this.currentModel === 'kimi') {
-      this.initializeKimiModel();
-      return this.kimiModel;
-    } else {
-      this.initializeGeminiModel();
-      return this.geminiModel;
+    this.initializeKimiModel();
+    return this.kimiModel;
     }
   }
 
   // 🎯 核心方法：直接生成Markdown格式的测验
-  async generateQuizMarkdown(knowledge: KnowledgeNode, questionCount: number = 5, modelType?: AIModelType): Promise<QuizMarkdown> {
-    // 如果指定了模型类型，则临时切换
-    const originalModel = this.currentModel;
-    if (modelType && modelType !== this.currentModel) {
-      this.setModel(modelType);
-    }
-    
+  async generateQuizMarkdown(knowledge: KnowledgeNode, questionCount: number = 5): Promise<QuizMarkdown> {
     const activeModel = this.getActiveModel();
     
     if (!activeModel) {
-      console.log(`${this.currentModel} model not available, using fallback quiz`);
-      // 恢复原始模型设置
-      if (modelType && modelType !== originalModel) {
-        this.setModel(originalModel);
-      }
+      console.log('Kimi model not available, using fallback quiz');
       return this.getFallbackQuizMarkdown(knowledge);
     }
     
     const prompt = this.createQuizPrompt(knowledge, questionCount);
     
     try {
-      console.log(`使用 ${this.currentModel} 模型生成测验...`);
+      console.log('使用 Kimi 模型生成测验...');
       const startTime = Date.now();
       
       const response = await activeModel.invoke([
@@ -131,25 +82,14 @@ class AIService {
       ]);
 
       const responseTime = Date.now() - startTime;
-      console.log(`${this.currentModel} 模型响应时间: ${responseTime}ms`);
-
-      // 恢复原始模型设置
-      if (modelType && modelType !== originalModel) {
-        this.setModel(originalModel);
-      }
+      console.log(`Kimi 模型响应时间: ${responseTime}ms`);
 
       return {
         content: response.content as string,
         knowledgeTitle: knowledge.title
       };
     } catch (error) {
-      console.error(`Error generating quiz with ${this.currentModel}:`, error);
-      
-      // 恢复原始模型设置
-      if (modelType && modelType !== originalModel) {
-        this.setModel(originalModel);
-      }
-      
+      console.error('Error generating quiz with Kimi:', error);
       return this.getFallbackQuizMarkdown(knowledge);
     }
   }

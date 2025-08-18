@@ -66,24 +66,16 @@ export function parseQuizYAML(yamlContent: string): AIQuizData {
 
 // AI测试题生成服务（客户端版本）
 export class AIQuizService {
-  private preferredModel: 'kimi' | 'gemini' = 'kimi'; // 默认使用kimi模型
+  private preferredModel: 'kimi' = 'kimi'; // 只支持kimi模型
 
   constructor() {
     // 客户端版本不需要初始化任何 Node.js 特定的依赖
   }
 
   /**
-   * 设置首选的AI模型
+   * 获取当前模型（固定为kimi）
    */
-  setPreferredModel(model: 'kimi' | 'gemini') {
-    this.preferredModel = model;
-    console.log(`AIQuizService切换到模型: ${model}`);
-  }
-
-  /**
-   * 获取当前首选模型
-   */
-  getPreferredModel(): 'kimi' | 'gemini' {
+  getPreferredModel(): 'kimi' {
     return this.preferredModel;
   }
 
@@ -94,10 +86,9 @@ export class AIQuizService {
     title: string;
     description: string;
     content: string;
-  }, modelType?: 'kimi' | 'gemini'): Promise<AIQuizData> {
+  }): Promise<AIQuizData> {
     try {
-      const useModel = modelType || this.preferredModel;
-      console.log(`开始使用 ${useModel} 模型生成AI测试题...`);
+      console.log('开始使用 Kimi 模型生成AI测试题...');
       
       // 通过 API 路由生成测试题
       const response = await fetch('/api/generate-quiz', {
@@ -109,7 +100,7 @@ export class AIQuizService {
           title: knowledgeNode.title,
           description: knowledgeNode.description,
           content: knowledgeNode.content,
-          model: useModel // 添加模型选择参数
+          modelType: 'kimi' // 固定使用kimi模型
         })
       });
 
@@ -124,7 +115,7 @@ export class AIQuizService {
 
       return quizData;
     } catch (error) {
-      console.error(`生成AI测试题失败 (${modelType || this.preferredModel}):`, error);
+      console.error('生成AI测试题失败 (Kimi):', error);
       throw new Error(`生成测试题失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

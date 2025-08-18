@@ -6,7 +6,7 @@ export default function AITestNewPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState<'kimi' | 'gemini'>('kimi');
+  const [selectedModel] = useState<'kimi'>('kimi');
   const [question, setQuestion] = useState('1+1等于多少？');
   const [metadata, setMetadata] = useState<any>(null);
 
@@ -27,8 +27,7 @@ export default function AITestNewPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          model: selectedModel,
-          question: question
+          question
         }),
       });
       
@@ -59,45 +58,23 @@ export default function AITestNewPage() {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
         <h2 className="text-lg font-semibold text-blue-800 mb-2">功能说明</h2>
         <p className="text-blue-700 mb-2">
-          此页面支持测试多种AI模型，包括：
+          此页面使用Kimi AI模型进行测试：
         </p>
         <ul className="list-disc list-inside text-blue-700 space-y-1">
-          <li><strong>Kimi (moonshot-v1-8k)</strong> - 月之暗面提供，无需代理直接访问</li>
-          <li><strong>Gemini 2.5 Flash</strong> - Google提供，需要代理访问</li>
+          <li><strong>Kimi (kimi-k2-0711-preview)</strong> - 月之暗面提供，无需代理直接访问</li>
         </ul>
       </div>
 
       <div className="space-y-6">
-        {/* 模型选择 */}
+        {/* 当前使用的模型 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">
-            选择AI模型
+            当前AI模型
           </label>
-          <div className="flex space-x-4">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                value="kimi"
-                checked={selectedModel === 'kimi'}
-                onChange={(e) => setSelectedModel(e.target.value as 'kimi')}
-                className="mr-2"
-              />
-              <span className="text-sm">
-                <strong>Kimi</strong> (推荐 - 无需代理)
-              </span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                value="gemini"
-                checked={selectedModel === 'gemini'}
-                onChange={(e) => setSelectedModel(e.target.value as 'gemini')}
-                className="mr-2"
-              />
-              <span className="text-sm">
-                <strong>Gemini</strong> (需要代理)
-              </span>
-            </label>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <span className="text-sm font-medium text-gray-800">
+              <strong>Kimi (kimi-k2-0711-preview)</strong> - 月之暗面AI模型
+            </span>
           </div>
         </div>
 
@@ -122,7 +99,7 @@ export default function AITestNewPage() {
           disabled={loading || !question.trim()}
           className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
         >
-          {loading ? '测试中...' : `测试 ${selectedModel === 'kimi' ? 'Kimi' : 'Gemini'} AI`}
+          {loading ? '测试中...' : '测试 Kimi AI'}
         </button>
 
         {/* 错误显示 */}

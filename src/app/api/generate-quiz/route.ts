@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatMoonshot } from '@langchain/community/chat_models/moonshot';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import yaml from 'js-yaml';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 import { AIQuizData, parseQuizYAML } from '../../../services/aiQuizService';
 
 export async function POST(request: NextRequest) {
   try {
-    const { title, description, content, modelType = 'kimi' } = await request.json();
+    const { title, description, content } = await request.json();
 
     if (!title || !description || !content) {
       return NextResponse.json(
@@ -19,74 +17,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('AI Quiz API: 使用模型:', modelType);
+    console.log('AI Quiz API: 使用Kimi模型');
     
-    let model;
-    let modelInfo;
+    // 使用 Kimi 模型
+    const kimiApiKey = process.env.KIMI_API_KEY;
     
-    if (modelType === 'kimi') {
-      // 使用 Kimi 模型（不需要代理）
-      const kimiApiKey = process.env.KIMI_API_KEY;
-      
-      if (!kimiApiKey) {
-        return NextResponse.json(
-          { error: '未设置 KIMI API Key，请在环境变量中设置 KIMI_API_KEY' },
-          { status: 500 }
-        );
-      }
-      
-      console.log('AI Quiz API: 使用Kimi模型，API密钥长度:', kimiApiKey.length);
-      
-      model = new ChatMoonshot({
-        model: 'kimi-k2-0711-preview',
-        temperature: 0.3,
-        apiKey: kimiApiKey,
-      });
-      
-      modelInfo = {
-        name: 'kimi-k2-0711-preview',
-        provider: 'Moonshot AI',
-        needsProxy: false
-      };
-      
-    } else if (modelType === 'gemini') {
-      // 使用 Gemini 模型（需要代理）
-      const proxyUrl = 'http://127.0.0.1:10808';
-      const proxyAgent = new HttpsProxyAgent(proxyUrl);
-      
-      console.log('AI Quiz API使用代理:', proxyUrl);
-      
-      const apiKey = process.env.GOOGLE_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
-      
-      if (!apiKey) {
-        return NextResponse.json(
-          { error: '未设置 Google API Key，请在环境变量中设置 GOOGLE_API_KEY 或 NEXT_PUBLIC_GOOGLE_API_KEY' },
-          { status: 500 }
-        );
-      }
-      
-      console.log('AI Quiz API: 使用Gemini模型，API密钥长度:', apiKey.length);
-      
-      model = new ChatGoogleGenerativeAI({
-        model: 'gemini-2.5-flash',
-        temperature: 0.3,
-        apiKey: apiKey,
-        // @ts-expect-error - Node.js specific agent option for proxy
-        agent: proxyAgent,
-      });
-      
-      modelInfo = {
-        name: 'gemini-2.5-flash',
-        provider: 'Google',
-        needsProxy: true
-      };
-      
-    } else {
+    if (!kimiApiKey) {
       return NextResponse.json(
-        { error: '不支持的模型类型，支持的模型: kimi, gemini' },
-        { status: 400 }
+        { error: '未设置 KIMI API Key，请在环境变量中设置 KIMI_API_KEY' },
+        { status: 500 }
       );
     }
+    
+    console.log('AI Quiz API: 使用Kimi模型，API密钥长度:', kimiApiKey.length);
+    
+    const model = new ChatMoonshot({
+      model: 'kimi-k2-0711-preview',
+      temperature: 0.3,
+      apiKey: kimiApiKey,
+    });
+    
+    const modelInfo = {
+      name: 'kimi-k2-0711-preview',
+      provider: 'Moonshot AI',
+      needsProxy: false
+    };
 
     // 创建提示模板
     const promptTemplate = PromptTemplate.fromTemplate(`
