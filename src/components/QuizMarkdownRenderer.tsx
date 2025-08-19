@@ -16,14 +16,13 @@ export const QuizMarkdownRenderer: React.FC<QuizMarkdownRendererProps> = ({
     <div className={`quiz-markdown ${className}`}>
       <ReactMarkdown
         components={{
-          code({ node, inline, className, children, ...props }) {
+          code({ inline, className, children, ...props }: React.ComponentProps<'code'> & { inline?: boolean }) {
             const match = /language-(\w+)/.exec(className || '');
             return !inline && match ? (
               <SyntaxHighlighter
                 style={tomorrow}
                 language={match[1]}
                 PreTag="div"
-                {...props}
               >
                 {String(children).replace(/\n$/, '')}
               </SyntaxHighlighter>

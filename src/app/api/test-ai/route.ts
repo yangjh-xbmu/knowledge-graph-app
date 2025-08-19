@@ -1,21 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 
-export async function POST(request: NextRequest) {
+// Cloudflare Edge Runtime 配置
+export const runtime = 'edge';
+
+// Edge Runtime 不支持代理配置
+// 在生产环境中，Cloudflare 会处理网络请求
+
+export async function POST() {
   try {
     console.log('API路由: 开始AI测试...');
     console.log('API路由: GOOGLE_API_KEY存在:', !!process.env.GOOGLE_API_KEY);
     console.log('API路由: NEXT_PUBLIC_GOOGLE_API_KEY存在:', !!process.env.NEXT_PUBLIC_GOOGLE_API_KEY);
     
-    // 配置代理（仅在服务器端）
-    const proxyUrl = 'http://127.0.0.1:10808';
-    const proxyAgent = new HttpsProxyAgent(proxyUrl);
-    
-    console.log('API路由: 使用代理:', proxyUrl);
+    // 检测运行环境
+    // Edge Runtime 环境，不使用代理
+    console.log('API路由: Edge Runtime 环境，直接连接');
     
     const apiKey = process.env.GOOGLE_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
     
@@ -31,8 +34,6 @@ export async function POST(request: NextRequest) {
       model: 'gemini-2.5-flash',
       temperature: 0.3,
       apiKey: apiKey,
-      // @ts-expect-error - Node.js specific agent option for proxy
-      agent: proxyAgent,
     });
     
     console.log('API路由: 模型已创建，创建LangChain链...');
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error: unknown) {
-    const err = error as any;
+    const err = error as Error & { status?: number; statusText?: string; };
     console.error('API路由: AI测试失败:', error);
     console.error('API路由: 错误详情:', {
       message: err?.message,

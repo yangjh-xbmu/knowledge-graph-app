@@ -39,21 +39,22 @@ export default function SimpleAITestPage() {
     } catch (err: unknown) {
       console.error('简单测试失败:', err);
       
-      const error = err as any;
+      const error = err as unknown;
+      const errorObj = error as { message?: string; stack?: string; name?: string; status?: number; statusText?: string; response?: unknown };
       console.error('错误详情:', {
-        message: error?.message || '未知错误',
-        stack: error?.stack,
-        name: error?.name,
-        status: error?.status,
-        statusText: error?.statusText,
-        response: error?.response
+        message: errorObj?.message || '未知错误',
+        stack: errorObj?.stack,
+        name: errorObj?.name,
+        status: errorObj?.status,
+        statusText: errorObj?.statusText,
+        response: errorObj?.response
       });
       
       let errorMessage = '未知错误';
-      if (error?.message) {
-        errorMessage = error.message;
-      } else if (error?.status) {
-        errorMessage = `HTTP ${error.status}: ${error.statusText || '请求失败'}`;
+      if (errorObj?.message) {
+        errorMessage = errorObj.message;
+      } else if (errorObj?.status) {
+        errorMessage = `HTTP ${errorObj.status}: ${errorObj.statusText || '请求失败'}`;
       }
       
       setError(errorMessage);

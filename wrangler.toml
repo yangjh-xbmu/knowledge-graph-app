@@ -1,0 +1,115 @@
+# Cloudflare Pages 配置文件
+name = "knowledge-graph-app"
+compatibility_date = "2024-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# Pages 项目配置
+[env.production]
+name = "knowledge-graph-app"
+
+[env.preview]
+name = "knowledge-graph-app-preview"
+
+# 构建配置
+[build]
+command = "npm run build"
+cwd = "."
+directory = ".next"
+
+# 环境变量配置（生产环境）
+[env.production.vars]
+NODE_ENV = "production"
+NEXT_RUNTIME = "edge"
+
+# 环境变量配置（预览环境）
+[env.preview.vars]
+NODE_ENV = "development"
+NEXT_RUNTIME = "edge"
+
+# KV 存储配置（如果需要）
+# [[kv_namespaces]]
+# binding = "MY_KV_NAMESPACE"
+# id = "your-kv-namespace-id"
+# preview_id = "your-preview-kv-namespace-id"
+
+# D1 数据库配置（如果需要）
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "knowledge-graph-db"
+# database_id = "your-database-id"
+
+# R2 存储配置（如果需要）
+# [[r2_buckets]]
+# binding = "MY_BUCKET"
+# bucket_name = "knowledge-graph-assets"
+# preview_bucket_name = "knowledge-graph-assets-preview"
+
+# 路由配置
+[[routes]]
+pattern = "/*"
+zone_name = "your-domain.com"  # 替换为你的域名
+
+# 头部配置
+[env.production.headers]
+"/*" = [
+  { name = "X-Frame-Options", value = "DENY" },
+  { name = "X-Content-Type-Options", value = "nosniff" },
+  { name = "Referrer-Policy", value = "strict-origin-when-cross-origin" },
+  { name = "Permissions-Policy", value = "camera=(), microphone=(), geolocation=()" }
+]
+
+# 重定向配置
+[[redirects]]
+from = "/old-path/*"
+to = "/new-path/:splat"
+status = 301
+
+# 自定义错误页面
+[env.production.pages_build_output_dir]
+value = ".next"
+
+# 函数配置
+[functions]
+directory = "functions"
+
+# 分析配置
+[analytics]
+enabled = true
+
+# 速率限制配置（如果需要）
+# [rate_limiting]
+# enabled = true
+# threshold = 1000
+# period = 60
+
+# 缓存配置
+[cache]
+# 静态资源缓存时间
+browser_ttl = 31536000  # 1年
+edge_ttl = 31536000     # 1年
+
+# 开发配置
+[dev]
+ip = "127.0.0.1"
+port = 8788
+local_protocol = "http"
+
+# 部署配置
+[triggers]
+crons = []
+
+# 日志配置
+[observability]
+enabled = true
+
+# 安全配置
+[security]
+# CSP 配置
+content_security_policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://generativelanguage.googleapis.com https://api.moonshot.cn;"
+
+# 性能配置
+[performance]
+# 启用 Brotli 压缩
+brotli = true
+# 启用 Gzip 压缩
+gzip = true

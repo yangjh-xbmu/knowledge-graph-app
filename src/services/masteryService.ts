@@ -11,7 +11,7 @@ class MasteryService {
       
       const states = JSON.parse(stored);
       // 转换日期字符串回Date对象
-      return states.map((state: any) => ({
+      return states.map((state: { nodeId: string; masteredAt: string; quizScore?: number }) => ({
         ...state,
         masteredAt: new Date(state.masteredAt)
       }));

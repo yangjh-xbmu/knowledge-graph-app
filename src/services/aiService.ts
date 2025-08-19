@@ -15,7 +15,6 @@ export interface QuizData {
   totalQuestions: number;
 }
 
-// 简化的接口 - 直接返回Markdown内容
 export interface QuizMarkdown {
   content: string;
   knowledgeTitle: string;
@@ -27,39 +26,36 @@ class AIService {
   private kimiModel: ChatMoonshot | null = null;
   private currentModel: AIModelType = 'kimi'; // 只支持kimi模型
 
-  // 获取当前模型类型（固定为kimi）
   getCurrentModel(): AIModelType {
     return this.currentModel;
   }
 
   private initializeKimiModel() {
-    if (this.kimiModel) return;
-    
-    const kimiApiKey = process.env.NEXT_PUBLIC_KIMI_API_KEY || process.env.KIMI_API_KEY;
-    if (!kimiApiKey) {
-      console.warn('KIMI_API_KEY is not set in environment variables.');
+    const apiKey = process.env.KIMI_API_KEY;
+    if (!apiKey) {
+      console.warn('KIMI_API_KEY not found in environment variables');
       return;
     }
 
     try {
-      console.log('AI Service初始化Kimi模型...');
-      
       this.kimiModel = new ChatMoonshot({
+        apiKey: apiKey,
         model: 'moonshot-v1-8k',
-        temperature: 0.3,
-        apiKey: kimiApiKey,
+        temperature: 0.7,
       });
+      console.log('Kimi model initialized successfully');
     } catch (error) {
       console.error('Failed to initialize Kimi model:', error);
+      this.kimiModel = null;
     }
   }
 
-
-
   private getActiveModel() {
-    this.initializeKimiModel();
-    return this.kimiModel;
+    if (!this.kimiModel) {
+      this.initializeKimiModel();
+      return this.kimiModel;
     }
+    return this.kimiModel;
   }
 
   // 🎯 核心方法：直接生成Markdown格式的测验
@@ -176,6 +172,5 @@ class AIService {
   }
 }
 
-// 导出单例实例
 export const aiService = new AIService();
 export default aiService;

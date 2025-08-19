@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
 import ReactFlow, {
-  Node,
   Edge,
   addEdge,
   Connection,
@@ -18,7 +17,6 @@ import {
   convertToReactFlowNodes,
   convertToReactFlowEdges,
   ReactFlowKnowledgeNode,
-  ReactFlowKnowledgeEdge,
 } from '../types/reactflow';
 import KnowledgeNode from './KnowledgeNode';
 

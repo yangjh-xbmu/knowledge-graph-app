@@ -3,7 +3,12 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+
+// Cloudflare Edge Runtime 配置
+export const runtime = 'edge';
+
+// Edge Runtime 不支持代理配置
+// 在生产环境中，Cloudflare 会处理网络请求
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,11 +33,8 @@ export async function POST(request: NextRequest) {
     
     console.log('LangChain测试: 测试主题:', topic);
     
-    // 配置代理
-    const proxyUrl = 'http://127.0.0.1:10808';
-    const proxyAgent = new HttpsProxyAgent(proxyUrl);
-    
-    console.log('LangChain使用代理:', proxyUrl);
+    // Edge Runtime 环境，不使用代理
+    console.log('LangChain: Edge Runtime 环境，直接连接');
     
     // 1. 创建模型
     console.log('LangChain测试: 创建ChatGoogleGenerativeAI模型...');
@@ -40,8 +42,7 @@ export async function POST(request: NextRequest) {
       apiKey: googleApiKey,
       model: 'gemini-1.5-flash',
       temperature: 0.7,
-      // @ts-expect-error - Node.js specific agent option for proxy
-      agent: proxyAgent,
+
     });
     
     // 2. 创建提示模板

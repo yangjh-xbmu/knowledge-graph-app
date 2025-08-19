@@ -18,13 +18,13 @@ export interface ReactFlowKnowledgeNode extends Node {
   };
 }
 
-// React Flow 边类型
-export type ReactFlowKnowledgeEdge = Edge & {
-  data?: {
-    type: 'prerequisite' | 'related' | 'extends';
-    label?: string;
-  };
-}
+// React Flow 边类型 (暂时未使用)
+// export type ReactFlowKnowledgeEdge = Edge & {
+//   data?: {
+//     type: 'prerequisite' | 'related' | 'extends';
+//     label?: string;
+//   };
+// }
 
 // 数据转换函数
 export const convertToReactFlowNodes = (

@@ -66,7 +66,7 @@ export function parseQuizYAML(yamlContent: string): AIQuizData {
 
 // AI测试题生成服务（客户端版本）
 export class AIQuizService {
-  private preferredModel: 'kimi' = 'kimi'; // 只支持kimi模型
+  private preferredModel = 'kimi' as const; // 只支持kimi模型
 
   constructor() {
     // 客户端版本不需要初始化任何 Node.js 特定的依赖

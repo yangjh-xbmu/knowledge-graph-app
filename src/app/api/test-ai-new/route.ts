@@ -4,6 +4,9 @@ import { PromptTemplate } from '@langchain/core/prompts';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 
+// Cloudflare Edge Runtime 配置
+export const runtime = 'edge';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -72,7 +75,7 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error: unknown) {
-    const err = error as any;
+    const err = error as Error & { status?: number; statusText?: string; };
     console.error('API路由: AI测试失败:', error);
     console.error('API路由: 错误详情:', {
       message: err?.message,

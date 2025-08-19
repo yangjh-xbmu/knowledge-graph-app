@@ -3,8 +3,11 @@ import { ChatMoonshot } from '@langchain/community/chat_models/moonshot';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
-import yaml from 'js-yaml';
-import { AIQuizData, parseQuizYAML } from '../../../services/aiQuizService';
+// import yaml from 'js-yaml';
+import { parseQuizYAML } from '../../../services/aiQuizService';
+
+// Cloudflare Edge Runtime 配置
+export const runtime = 'edge';
 
 export async function POST(request: NextRequest) {
   try {

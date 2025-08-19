@@ -2,13 +2,23 @@
 
 import { useState } from 'react';
 
+interface MetadataType {
+  model?: {
+    name?: string;
+    provider?: string;
+    needsProxy?: boolean;
+  };
+  responseTime?: number;
+  timestamp?: string;
+}
+
 export default function AITestNewPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedModel] = useState<'kimi'>('kimi');
   const [question, setQuestion] = useState('1+1等于多少？');
-  const [metadata, setMetadata] = useState<any>(null);
+  const [metadata, setMetadata] = useState<MetadataType | null>(null);
 
   const testAI = async () => {
     setLoading(true);
@@ -124,7 +134,7 @@ export default function AITestNewPage() {
                   <p><strong>模型:</strong> {metadata.model?.name} ({metadata.model?.provider})</p>
                   <p><strong>响应时间:</strong> {metadata.responseTime}ms</p>
                   <p><strong>需要代理:</strong> {metadata.model?.needsProxy ? '是' : '否'}</p>
-                  <p><strong>时间戳:</strong> {new Date(metadata.timestamp).toLocaleString()}</p>
+                  <p><strong>时间戳:</strong> {metadata.timestamp ? new Date(metadata.timestamp).toLocaleString() : 'N/A'}</p>
                 </div>
               </div>
             )}

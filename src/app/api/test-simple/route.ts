@@ -1,6 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function POST(request: NextRequest) {
+// Cloudflare Edge Runtime 配置
+export const runtime = 'edge';
+
+export async function POST() {
   try {
     console.log('简单API测试: 开始...');
     

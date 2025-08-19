@@ -86,7 +86,8 @@ const AIMarkdownTest: React.FC = () => {
   };
 
   const markdownComponents = {
-    code({ node, inline, className, children, ...props }: any) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    code({ inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || '');
       const hasLanguageClass = !!match;
       const content = String(children).replace(/\n$/, '');
@@ -125,7 +126,7 @@ const AIMarkdownTest: React.FC = () => {
         const language = match ? match[1] : 'text';
         return (
           <SyntaxHighlighter
-            style={tomorrow}
+            style={tomorrow as { [key: string]: React.CSSProperties }}
             language={language}
             PreTag="div"
             className="rounded-md"
@@ -200,7 +201,7 @@ const AIMarkdownTest: React.FC = () => {
       
       {testResults.length === 0 && (
         <div className="text-center text-gray-500 mt-8">
-          点击"运行测试"开始测试AI Markdown格式修正功能
+          点击&quot;运行测试&quot;开始测试AI Markdown格式修正功能
         </div>
       )}
     </div>

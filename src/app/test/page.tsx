@@ -52,19 +52,18 @@ export default function TestPage() {
       <div className="prose max-w-none">
         <ReactMarkdown
           components={{
-            code({ node, inline, className, children, ...props }) {
+            code({ inline, className, children }: React.ComponentProps<'code'> & { inline?: boolean }) {
               const match = /language-(\w+)/.exec(className || '');
               return !inline && match ? (
                 <SyntaxHighlighter
                   style={tomorrow}
                   language={match[1]}
                   PreTag="div"
-                  {...props}
                 >
                   {String(children).replace(/\n$/, '')}
                 </SyntaxHighlighter>
               ) : (
-                <code className={className} {...props}>
+                <code className={className}>
                   {children}
                 </code>
               );

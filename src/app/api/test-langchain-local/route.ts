@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Cloudflare Edge Runtime 配置
+export const runtime = 'edge';
+
 // 模拟LangChain组件
 class MockPromptTemplate {
   private template: string;
